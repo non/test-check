@@ -3,7 +3,7 @@
 use Test::More tests => 1;
 
 BEGIN {
-	use_ok( 'Test::Functional' );
+	use_ok( 'Test::Check' );
 }
 
-diag( "Testing Test::Functional $Test::Functional::VERSION, Perl $], $^X" );
+diag( "Testing Test::Check $Test::Check::VERSION, Perl $], $^X" );
