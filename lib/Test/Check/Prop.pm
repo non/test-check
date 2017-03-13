@@ -11,8 +11,6 @@ use Test::Check::Gen qw(/.*/);
 
 our @ISA = qw(Exporter);
 
-our @EXPORT_OK = qw();
-
 use feature 'unicode_strings';
 
 our $VERSION = '0.01';
@@ -36,7 +34,10 @@ sub run {
     my ($self, $seed) = @_;
     my ($value, $next) = $self->{gen}->($seed);
     my @args = $self->{isnamed} ? %$value : @$value;
-    return ($self->{predicate}->(@args), $next);
+    #my $res = eval { $self->{predicate}->(@args) };
+    #return ($@ ? undef : $res, $next);
+    my $res = $self->{predicate}->(@args);
+    return ($res, $next);
 }
 
 sub test {
@@ -53,6 +54,7 @@ sub test {
 
 sub summary {
     my ($self, $seed) = @_;
+    $seed = randomseed() unless defined($seed);
     my ($passed, $failseed) = $self->test($seed);
     if ($passed) {
         print "property $self->{name} passed\n";
@@ -62,7 +64,8 @@ sub summary {
         print "  arguments were:\n";
         my ($value, $next) = $self->{gen}->($seed);
         if ($self->{isnamed}) {
-            foreach my $key (keys(%$value)) {
+            my %h = %$value;
+            foreach my $key (keys(%h)) {
                 print "    $key: $value->{$key}\n";
             }
         } else {

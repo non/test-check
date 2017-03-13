@@ -6,12 +6,13 @@ use strict;
 use Carp;
 use Exporter;
 use Memoize;
+use Test::Deep qw(eq_deeply);
 
 our @ISA = qw(Exporter);
 
-our @EXPORT_OK = qw(comap flatmap filter const onein bool whole fraction range
-    size codepoint identifier string tuple record vector array table hash
-    oneof frequency optional sample stringof ascii function randomseed);
+our @EXPORT_OK = qw(comap flatmap flatten filter const onein bool whole fraction range
+    size codepoint identifier string tuple record vector array table hash anything
+    oneof frequency optional sample stringof ascii function generators randomseed gengen genseed eq_gen);
 
 use feature 'unicode_strings';
 
@@ -47,7 +48,7 @@ sub flatmap(&$) {
         my ($seed0) = @_;
         my ($value, $seed1) = $gen->($seed0);
         $_ = $value;
-        return &$f->($seed1);
+        return (&$f)->($seed1);
     };
 }
 
@@ -220,6 +221,7 @@ sub tuple(@) {
         my ($seed) = @_;
         my $res = [];
         for my $gen (@gens) {
+            confess unless $gen;
             my ($value, $next) = $gen->($seed);
             push(@$res, $value);
             $seed = $next;
@@ -233,12 +235,14 @@ sub record(@) {
     return gen {
         my ($seed) = @_;
         my $res = {};
-        while (@items) {
-          my $key = shift @items;
-          my $gen = shift @items;
-          my ($value, $next) = $gen->run($seed);
-          $res->{$key} = $value;
-          $seed = $next;
+        my $i = 0;
+        while ($i < scalar(@items)) {
+            my $key = $items[$i];
+            my $gen = $items[$i + 1];
+            $i += 2;
+            my ($value, $next) = $gen->($seed);
+            $res->{$key} = $value;
+            $seed = $next;
         }
         return ($res, $seed);
     };
@@ -306,6 +310,36 @@ sub function {
     };
 }
 
+# arbitrary generator
+
+sub gengen {
+    return comap {
+        if    ($_ <= 10) { bool() }
+        elsif ($_ <= 20) { flatmap { fraction($_) } range(10, 1000000) }
+        elsif ($_ <= 30) { flatmap { whole($_) } range(10, 1000000) }
+        elsif ($_ <= 40) { identifier() }
+        elsif ($_ <= 50) { string() }
+        elsif ($_ <= 55) { flatmap { tuple(@$_) } tuple(gengen(), gengen()) }
+        elsif ($_ <= 60) { flatmap { record(@$_) } tuple(identifier(), gengen(), identifier(), gengen()) }
+        elsif ($_ <= 65) { flatmap { vector(@$_) } tuple(gengen(), size()) }
+        else             { const(undef) }
+    } range(1, 75);
+}
+memoize('gengen');
+
+sub anything {
+    return flatten(gengen());
+}
+memoize('anything');
+
+sub genseed {
+    return gen {
+        my ($seed) = @_;
+        return ($seed, nextseed($seed));
+    }
+}
+memoize('genseed');
+
 # Interactive method for testing generators
 
 sub sample {
@@ -346,14 +380,35 @@ sub adjustseed {
 
 sub absorb {
     my ($seed, $input) = @_;
-    my $str = "$input";
-    my $i = 0;
-    while ($i < length($str)) {
-        my $c = substr($str, $i, 1);
-        $seed = adjustseed($seed, ord($c));
-        $i += 1
+    if (!defined($input)) {
+    } elsif (ref($input) eq 'ARRAY') {
+        foreach my $item (@$input) {
+            $seed = absorb($seed, $item);
+        }
+    } elsif (ref($input) eq 'HASH') {
+        foreach my $key (keys(%$input)) {
+            $seed = absorb($seed, $key);
+            $seed = absorb($seed, $input->{$key});
+        }
+    } elsif (ref($input) eq 'SCALAR') {
+        return absorb($seed, $$input);
+    } else {
+        my $str = defined($input) ? "$input" : "";
+        my $i = 0;
+        while ($i < length($str)) {
+            my $c = substr($str, $i, 1);
+            $seed = adjustseed($seed, ord($c));
+            $i += 1
+        }
     }
     return $seed;
+}
+
+sub eq_gen {
+    my ($gen1, $gen2, $seed) = @_;
+    my ($x1, $s1) = $gen1->($seed);
+    my ($x2, $s2) = $gen2->($seed);
+    return eq_deeply($x1, $x2) && $s1 == $s2;
 }
 
 1;
