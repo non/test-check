@@ -3,6 +3,25 @@ package Test::Check::Gen;
 use warnings;
 use strict;
 
+our $VERSION = '0.01';
+
+=head1 NAME
+
+Test::Check::Gen
+
+=head1 SYNOPSIS
+
+  use Test::Check::Gen;
+
+  die "write this!";
+
+=head1 DESCRIPTION
+
+We should write a description.
+
+=over
+
+=cut
 use Carp;
 use Exporter;
 use Memoize;
@@ -15,8 +34,6 @@ our @EXPORT_OK = qw(comap flatmap flatten filter const onein bool whole fraction
     oneof frequency optional sample stringof ascii function generators randomseed gengen genseed eq_gen);
 
 use feature 'unicode_strings';
-
-our $VERSION = '0.01';
 
 use constant SEED_MODULUS => 2147483647;
 
@@ -410,5 +427,13 @@ sub eq_gen {
     my ($x2, $s2) = $gen2->($seed);
     return eq_deeply($x1, $x2) && $s1 == $s2;
 }
+
+=back
+
+=head1 Conclusion
+
+The end.
+
+=cut
 
 1;

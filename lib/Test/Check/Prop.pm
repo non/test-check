@@ -3,6 +3,25 @@ package Test::Check::Prop;
 use warnings;
 use strict;
 
+our $VERSION = '0.01';
+
+=head1 NAME
+
+Test::Check::Prop
+
+=head1 SYNOPSIS
+
+  use Test::Check::Prop;
+
+  die "write this!";
+
+=head1 DESCRIPTION
+
+We should write a description.
+
+=over
+
+=cut
 use Carp;
 use Exporter;
 use Memoize;
@@ -13,8 +32,11 @@ our @ISA = qw(Exporter);
 
 use feature 'unicode_strings';
 
-our $VERSION = '0.01';
+=item B<new NAME PREDICATE [GEN1, GEN2...]>
 
+Test a property.
+
+=cut
 sub new {
     my ($class, $name, $predicate, @gens) = @_;
     die unless scalar(@gens);
@@ -30,6 +52,11 @@ sub new {
     return $self;
 }
 
+=item B<run SEED>
+
+Test a property.
+
+=cut
 sub run {
     my ($self, $seed) = @_;
     my ($value, $next) = $self->{gen}->($seed);
@@ -40,6 +67,11 @@ sub run {
     return ($res, $next);
 }
 
+=item B<test SEED>
+
+Test a property.
+
+=cut
 sub test {
     my ($self, $seed) = @_;
     my $runs = 0;
@@ -52,30 +84,12 @@ sub test {
     return (1, undef);
 }
 
-sub summary {
-    my ($self, $seed) = @_;
-    $seed = randomseed() unless defined($seed);
-    my ($passed, $failseed) = $self->test($seed);
-    if ($passed) {
-        print "property $self->{name} passed\n";
-    } else {
-        print "property $self->{name} failed\n";
-        print "  failing seed was $failseed\n";
-        print "  arguments were:\n";
-        my ($value, $next) = $self->{gen}->($seed);
-        if ($self->{isnamed}) {
-            my %h = %$value;
-            foreach my $key (keys(%h)) {
-                print "    $key: $value->{$key}\n";
-            }
-        } else {
-            my $i = 0;
-            while ($i < scalar(@$value)) {
-                print "    $i: $value->[$i]\n";
-                $i += 1;
-            }
-        }
-    }
-}
+=back
+
+=head1 Conclusion
+
+The end.
+
+=cut
 
 1;
