@@ -1,0 +1,29 @@
+---
+name: Test-Check
+version: 0.01
+author:
+  - 'Erik Osheim <erik@osheim.org>'
+abstract: Xyz
+license: perl
+resources:
+  license: http://dev.perl.org/licenses/
+requires:
+  Test::Builder: 0
+  Test::More: 0
+  perl: 5.6.0
+build_requires:
+  Test::More: 0
+recommends:
+  Test::Pod: 0
+  Test::Pod::Coverage: 0
+provides:
+  Test::Functional:
+    file: lib/Test/Functional.pm
+    version: 0.06
+  Test::Functional::Conf:
+    file: lib/Test/Functional/Conf.pm
+    version: 0.06
+generated_by: Module::Build version 0.280801
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2

@@ -1,0 +1,14 @@
+Build.PL
+Changes
+lib/Test/Check.pm
+lib/Test/Check/Gen.pm
+lib/Test/Check/Prop.pm
+Makefile.PL
+MANIFEST			This list of files
+META.yml
+README
+t/00-load.t
+t/Check.t
+t/output.t
+t/pod-coverage.t
+t/pod.t
