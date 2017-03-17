@@ -43,12 +43,45 @@ use constant MAX_RETRIES => 20;
 
 # Generators are blessed function references, which take an RNG seed as input,
 # and return a list containing a generated value and a new RNG seed.
+
+
+=item B<gen { FN }>
+
+Define a primitive generator using the given FN function.
+
+The BODY function should take a seed and return a value and a new seed in a
+list. For example:
+
+    my $mygen = gen {
+      my ($seed) = @_;
+      my ($value, $nextseed);
+      ...
+      return ($value, $nextseed);
+    };
+
+Generators are blessed function references. Since they return a pair of
+$value, $nextseed, $value will be a reference or a scalar.
+
+Generators are described in terms of the kinds of values they generate.
+
+=cut
 sub gen(&) {
     my ($function) = @_;
     bless($function, 'Test::Check::Gen');
     return $function;
 }
 
+=item B<comap { FN } GEN>
+
+Create a new generator from GEN using the given FN function.
+
+    my $g0 = oneof(1, 2, 3);        // produces 1, 2, or 3.
+    my $g1 = comap { $_ * 2 } $g0;  // produces 2, 4, or 6.
+    my $g2 = comap { $_ != 0 } $g0; // true or false, unevenly
+
+This is an analogue of Perl's built-in map method.
+
+=cut
 sub comap(&$) {
     my ($f, $gen) = @_;
     return gen {
@@ -59,6 +92,14 @@ sub comap(&$) {
     };
 }
 
+=item B<flatmap { GENFN } GEN>
+
+Create a new generator from GEN by sequencing its generated values through a
+generator-producing function GENFN.
+
+C<flatmap { ... } $g> is equivalent to C<flatten(comap { ... } $g)>.
+
+=cut
 sub flatmap(&$) {
     my ($f, $gen) = @_;
     return gen {
@@ -69,11 +110,42 @@ sub flatmap(&$) {
     };
 }
 
+=item B<flatten(GEN)>
+
+Flatten the given generator GEN by one level.
+
+    my $gen0 = whole();        // produces whole-numbers
+    my $gen1 = const($gen0);   // produces whole-number generators
+    my $gen2 = flatten($gen1); // equivalent to $gen0
+
+Note that this method does not "deeply-flatten" generators:
+
+    my $gen0 = whole();                // produces whole-numbers
+    my $gen1 = const(const($gen0));    // so nested!
+    my $gen2 = flatten($gen1);         // not equivalent to $gen0
+    my $gen  = flatten(flatten($gen1)) // equivalent to $gen0
+
+C<filter($gen)> is equvialent to C<flatmap { $_ } $gen>.
+
+=cut
 sub flatten {
     my ($gen) = @_;
     return flatmap { $_ } $gen;
 }
 
+=item B<filter { PRED } GEN>
+
+Create a new generator which produces values from the generator GEN which
+satisfy the predicate PRED.
+
+If the underlying generator GEN fails to satisfy the predicate many times in a
+row, the generator fails. This means C<filter> can only make a best effort,
+since some predicates are unsatisfiable:
+
+    filter { 1 } $g     // identical to 
+    filter { undef } $g // will crash instead of producing values
+
+=cut
 sub filter(&$) {
     my ($p, $gen) = @_;
     return gen {
@@ -89,22 +161,46 @@ sub filter(&$) {
     };
 }
 
+=item B<const(VALUE)>
+
+Create a generator that always produces the same value.
+
+=cut
 sub const {
     my ($value) = @_;
     return gen { return ($value, $_[0]) };
 }
 
+=item B<oneof(VALUES...)>
+
+Create a generator that produces any of the given values with equal
+probability.
+
+=cut
 sub oneof(@) {
     my (@choices) = @_;
     my $limit = scalar(@choices);
     return comap { $choices[$_] } range(0, $limit);
 }
 
+=item B<generators(GENS...)>
+
+Create a generator which produces any of the values which can be produced by
+the given generators.
+
+The generators will be used with equal probability (which does not mean that
+the underlying values will be chosen with equal probability across
+generators).
+
+=cut
 sub generators(@) {
     my (@gens) = @_;
     return flatten(oneof(@gens));
 }
 
+=item B<frequency(PAIRS...)>
+
+=cut
 sub frequency(@) {
     my (@pairs) = @_;
     my $total = 0;
@@ -124,6 +220,9 @@ sub frequency(@) {
     } fraction($total);
 }
 
+=item B<optional(GEN)>
+
+=cut
 sub optional {
     my ($gen) = @_;
     return flatmap { $_ ? const(undef) : $gen } onein(10);
@@ -131,15 +230,24 @@ sub optional {
 
 # Boolean and numeric generators
 
+=item B<onein(N)>
+
+=cut
 sub onein($) {
     my ($n) = @_;
     die unless $n > 0;
     return comap { $_ == 0 } range(0, $n);
 }
 
+=item B<bool()>
+
+=cut
 sub bool() { return onein(2) }
 memoize('bool');
 
+=item B<fraction()>
+
+=cut
 sub fraction {
     my ($start, $limit) = @_;
     if (defined($limit)) {
@@ -153,10 +261,16 @@ sub fraction {
     }
 }
 
+=item B<whole()>
+
+=cut
 sub whole {
     return comap { int($_) } fraction(@_);
 }
 
+=item B<range(START, LIMIT)>
+
+=cut
 sub range {
     my ($start, $limit) = @_;
     die "invalid range: ($start, $limit)" unless $start < $limit;
@@ -174,6 +288,9 @@ sub range {
     };
 }
 
+=item B<size()>
+
+=cut
 sub size() {
     return generators(range(0, 3), range(0, 11), range(0, 35));
 }
@@ -181,25 +298,40 @@ memoize('size');
 
 # Character and string generators
 
+=item B<concat(STRGENS...)>
+
+=cut
 sub concat(@) {
     return comap { join('', @$_) } tuple(@_);
 }
 
+=item B<char(START, LIMIT)>
+
+=cut
 sub char {
     my ($start, $limit) = @_;
     return comap { chr($_) } range($start, $limit);
 }
 
+=item B<ascii()>
+
+=cut
 sub ascii() {
     return char(0, 128)
 }
 memoize('ascii');
 
+=item B<wordchar()>
+
+=cut
 sub wordchar() {
     return oneof('A'..'Z', 'a'..'z', '0'..'9');
 }
 memoize('wordchar');
 
+=item B<codepoint()>
+
+=cut
 sub codepoint() {
     my $b10 = char(128, 192);
     return generators(
@@ -210,6 +342,9 @@ sub codepoint() {
 }
 memoize('codepoint');
 
+=item B<stringof(CHARGEN, SIZEGEN)>
+
+=cut
 sub stringof {
     my ($cgen, $sgen) = @_;
     $sgen = size() unless defined($sgen);
@@ -220,11 +355,17 @@ sub stringof {
     } $sgen;
 }
 
+=item B<identifier()>
+
+=cut
 sub identifier() {
     return stringof(wordchar(), range(1, 8));
 }
 memoize('identifier');
 
+=item B<string()>
+
+=cut
 sub string() {
     return stringof(codepoint());
 }
@@ -232,6 +373,9 @@ memoize('string');
 
 # Arary generators
 
+=item B<tuple(GENS...)>
+
+=cut
 sub tuple(@) {
     my (@gens) = @_;
     return gen {
@@ -247,6 +391,9 @@ sub tuple(@) {
     };
 }
 
+=item B<record(ITEMGENS...)>
+
+=cut
 sub record(@) {
     my (@items) = @_;
     return gen {
@@ -265,6 +412,9 @@ sub record(@) {
     };
 }
 
+=item B<vector(GEN, SIZE)>
+
+=cut
 sub vector {
     my ($gen, $size) = @_;
     die "invalid size: $size" unless $size >= 0;
@@ -281,6 +431,9 @@ sub vector {
     };
 }
 
+=item B<array(GEN, SIZEGEN)>
+
+=cut
 sub array {
     my ($egen, $sgen) = @_;
     $sgen = size() unless defined($sgen);
@@ -289,6 +442,9 @@ sub array {
 
 # Hash generators
 
+=item B<table(KEYGEN, GEN, SIZEGEN)>
+
+=cut
 sub table {
     my ($kgen, $vgen, $sgen) = @_;
     $sgen = size() unless defined($sgen);
@@ -302,6 +458,9 @@ sub table {
     } array(tuple($kgen, $vgen), $sgen);
 }
 
+=item B<hash(GEN, SIZEGEN)>
+
+=cut
 sub hash {
     my ($gen, $sgen) = @_;
     $sgen = size() unless defined($sgen);
@@ -310,6 +469,9 @@ sub hash {
 
 # Function generator
 
+=item B<function(GEN)>
+
+=cut
 sub function {
     my ($gen) = @_;
     return gen {
@@ -329,6 +491,9 @@ sub function {
 
 # arbitrary generator
 
+=item B<gengen()>
+
+=cut
 sub gengen {
     return comap {
         if    ($_ <= 10) { bool() }
@@ -344,11 +509,17 @@ sub gengen {
 }
 memoize('gengen');
 
+=item B<anything()>
+
+=cut
 sub anything {
     return flatten(gengen());
 }
 memoize('anything');
 
+=item B<genseed()>
+
+=cut
 sub genseed {
     return gen {
         my ($seed) = @_;
@@ -359,6 +530,9 @@ memoize('genseed');
 
 # Interactive method for testing generators
 
+=item B<sample(GEN, COUNT)>
+
+=cut
 sub sample {
     my ($gen, $count) = @_;
     my $seed = randomseed();
@@ -379,10 +553,16 @@ sub sample {
 
 # Low-level RNG / seed manipulation
 
+=item B<randomseed()>
+
+=cut
 sub randomseed {
     return int(rand(SEED_MODULUS));
 }
 
+=item B<nextseed(SEED)>
+
+=cut
 sub nextseed {
     my ($seed) = @_;
     my $next = (16807 * $seed) % SEED_MODULUS;
@@ -390,11 +570,17 @@ sub nextseed {
     return $next
 }
 
+=item B<adjustseed(SEED, N)>
+
+=cut
 sub adjustseed {
     my ($seed, $n) = @_;
     return int($seed + $n) % SEED_MODULUS;
 }
 
+=item B<absorb(SEED, VALUE)>
+
+=cut
 sub absorb {
     my ($seed, $input) = @_;
     if (!defined($input)) {
@@ -421,6 +607,9 @@ sub absorb {
     return $seed;
 }
 
+=item B<eq_gen(GEN1, GEN2, SEED)>
+
+=cut
 sub eq_gen {
     my ($gen1, $gen2, $seed) = @_;
     my ($x1, $s1) = $gen1->($seed);
