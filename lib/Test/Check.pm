@@ -11,9 +11,20 @@ Test::Check - Property-based testing for Perl.
 
 =head1 SYNOPSIS
 
-  use Test::Check;
+    use Test::Check tests => 14;
+    use Test::Check::Gen qw(/.*/);
 
-  die "write this!";
+    my $g = whole(1000); // generate integers -999 to 999
+
+    test "+ is associative" => prop {
+        my ($x, $y, $z) = @_;
+        (($x + $y) + $z) == ($x + ($y + $z));
+    } $g, $g, $g;
+
+    test "0 is unique" => prop {
+        my (%o) = @_;
+        ($o{x} + $o{y} == $o{x}) == ($o{y} == 0);
+    } x => $g, y => $g;
 
 =head1 DESCRIPTION
 

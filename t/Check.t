@@ -16,9 +16,9 @@ test "+ is associative" => prop {
 } whole(100), whole(100), whole(100);
 
 test "+ is commutative" => prop {
-    my ($x, $y) = @_;
-    ($x + $y) == ($y + $x);
-} whole(100), whole(100);
+    my (%o) = @_;
+    ($o{x} + $o{y}) == ($o{y} + $o{x});
+} x => whole(100), y => whole(100);
 
 test "& is idempotent" => prop {
     my ($x, $y) = @_;
