@@ -2,3 +2,5 @@ blib
 _build
 MYMETA.json
 MYMETA.yml
+Makefile.PL
+Build
