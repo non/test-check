@@ -6,7 +6,7 @@ package main;
 use warnings;
 use strict;
 
-use Test::Check tests => 14;
+use Test::Check tests => 15;
 use Test::Check::Gen qw(/.*/);
 use Test::Deep qw(eq_deeply);
 
@@ -24,6 +24,13 @@ test "& is idempotent" => prop {
     my ($x, $y) = @_;
     ($x & $y) == (($x & $y) & $y);
 } whole(100), whole(100);
+
+test "0 is unique" => prop {
+    my ($x, $y) = @_;
+    my $isunchanged = $x + $y == $x;
+    my $iszero = $y == 0;
+    $isunchanged == $iszero;
+} whole(10), whole(10);
 
 test "gen is deterministic" => prop {
     my ($gen, $seed) = @_;
