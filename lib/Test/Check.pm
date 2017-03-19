@@ -41,6 +41,10 @@ wide variety of inputs. Then, we use generators to produce arbitrary values,
 evaluate the properties, and attempt to find counter-examples (failing test
 cases).
 
+Property-based testing cannot prove the absence of bugs (it may fail to "find"
+the buggy test cases) but testing properties over many test cases can help
+increase confidence that things are working correctly.
+
 C<Test::Check> contains some top-level functions which provide a very simple
 DSL to define properties and attach generators to them.
 

@@ -11,13 +11,26 @@ Test::Check::Prop
 
 =head1 SYNOPSIS
 
-  use Test::Check::Prop;
+    use Test::Check::Prop;
+    use Test::Check::Gen qw(number);
 
-  die "write this!";
+    my $name = "property name";
+    my $pred = sub {
+        my ($x, $y) = @_;
+        ($x + y) == ($y + $x);
+    };
+    my @gens = (number(), number());
+    my $prop = Test::Check::Prop->new($name, $pred, @gens);
 
 =head1 DESCRIPTION
 
-We should write a description.
+A property is an invariant: something that should always be true.
+
+Concretely, it is a named predicate, together with zero-or-more generators
+which produce test cases to be checked against the predicate. Given a seed
+value (used when generating arbitrary test cases), a property can generate a
+test case (zero-or-more values to feed to the predicate) and try to falsify
+the property.
 
 =over
 
@@ -34,7 +47,19 @@ use feature 'unicode_strings';
 
 =item B<new NAME PREDICATE [GEN1, GEN2...]>
 
-Test a property.
+Given a name, a predicate, and generators, construct a property.
+
+Generators can be given in two forms:
+
+ - Positional form, e.g. B<$g1, $g2, ...>
+ - Named form, e.g. B<x => $g1, y => $g2>
+
+The form should correspond to the expectations of the predicate, so if the
+named form is used, the predicate should built an %opts hash and dereference
+parameters that way.
+
+Constructing a property does not actually run any tests. To do that, see
+B<run>, B<test>, and B<check>.
 
 =cut
 sub new {
@@ -132,10 +157,6 @@ sub check {
 }
 
 =back
-
-=head1 Conclusion
-
-The end.
 
 =cut
 

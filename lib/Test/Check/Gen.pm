@@ -245,6 +245,16 @@ sub onein($) {
 sub bool() { return onein(2) }
 memoize('bool');
 
+=item B<number()>
+
+=cut
+sub number {
+    return generators(
+        fraction(1), fraction(1000), fraction(1000000000),
+        whole(1), whole(1000), whole(1000000000));
+}
+memoize('number');
+
 =item B<fraction()>
 
 =cut
@@ -378,8 +388,7 @@ sub anyscalar() {
     return generators(
         const(undef),
         bool(),
-        generators(fraction(1), fraction(1000), fraction(1000000000)),
-        generators(whole(1), whole(1000), whole(1000000000)),
+        number(),
         identifier(),
         string());
 }
@@ -512,8 +521,8 @@ sub function {
 sub gengen {
     return comap {
         if    ($_ <= 10) { bool() }
-        elsif ($_ <= 20) { flatmap { fraction($_) } range(10, 1000000) }
-        elsif ($_ <= 30) { flatmap { whole($_) } range(10, 1000000) }
+        elsif ($_ <= 20) { flatmap { fraction($_) } range(1, 1000000000) }
+        elsif ($_ <= 30) { flatmap { whole($_) } range(1, 1000000000) }
         elsif ($_ <= 40) { identifier() }
         elsif ($_ <= 50) { string() }
         elsif ($_ <= 55) { flatmap { tuple(@$_) } tuple(gengen(), gengen()) }

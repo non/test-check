@@ -3,7 +3,6 @@ Changes
 lib/Test/Check.pm
 lib/Test/Check/Gen.pm
 lib/Test/Check/Prop.pm
-Makefile.PL
 MANIFEST			This list of files
 META.yml
 README
