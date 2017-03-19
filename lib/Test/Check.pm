@@ -53,8 +53,6 @@ It also contains two modules:
  * Test::Check::Gen - generator combinators for producing arbitrary data
  * Test::Check::Prop - objects representing properties to test
 
-=back
-
 =head1 DETERMINISM
 
 It's important that generators and properties are deterministic. When a

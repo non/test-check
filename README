@@ -111,10 +111,3 @@ FUTURE WORK
 
     Support hardcoded regression cases/seeds.
 
-POD ERRORS
-    Hey! The above document had some coding errors, which are explained
-    below:
-
-    Around line 56:
-        =back without =over
-
