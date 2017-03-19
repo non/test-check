@@ -83,7 +83,8 @@ our @EXPORT = qw(test prop);
 
 Define a named test which tests a particular property.
 
-Here's an examples:
+This function implements part of a DSL to make writing properties look
+relatively clean. Here's an example:
 
     use Data::Compare;
     use Test::Check;
@@ -92,7 +93,23 @@ Here's an examples:
     test "reverse . reverse = id" => prop {
         my ($xs) = @_;
         Compare([reverse(reverse(@$xs))], $xs)
-    }, array(); 
+    }, array();
+
+This is equivalent to the following code written directly against
+B<Test::Check::Prop>:
+
+    my $p = Test::Check::Prop->new(
+        "reverse . reverse = id",
+        sub {
+            my ($xs) = @_;
+            Compare([reverse(reverse(@$xs))], $xs)
+        },
+        array());
+    $p->run();
+
+Both of these do the same thing: test the given property against many
+generated test cases. In this example we are generating many randomly-filled
+arrays and ensuring that reversing them twice is a no-op.
 
 =cut
 sub test($$) {
@@ -106,7 +123,14 @@ sub test($$) {
 
 =item B<prop { BLOCK } [GEN1, GEN2...]>
 
-Define a property.
+Define a property to be tested.
+
+This function is part of a DSL and is intended to be called within B<test>. It
+associates the given property (implemented as an anonymous function) with
+zero-or-more generators which are responsible for creating test cases.
+
+During testing, each test case will be fed to the property's function, which
+will return true if the property passes, and false if it fails.
 
 =cut
 sub prop(&@) {
