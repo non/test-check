@@ -31,7 +31,8 @@ our @ISA = qw(Exporter);
 
 our @EXPORT_OK = qw(comap flatmap flatten filter const onein bool whole fraction range
     size codepoint identifier string tuple record vector array table hash anything
-    oneof frequency optional sample stringof ascii function generators randomseed gengen genseed eq_gen);
+    oneof frequency optional sample stringof ascii function generators randomseed
+    gengen genseed eq_gen number printable);
 
 use feature 'unicode_strings';
 
@@ -85,8 +86,8 @@ This is an analogue of Perl's built-in map method.
 sub comap(&$) {
     my ($f, $gen) = @_;
     return gen {
-        my ($seed0) = @_;
-        my ($value, $seed1) = $gen->($seed0);
+        my ($seed0, $shrinks) = @_;
+        my ($value, $seed1) = $gen->($seed0, $shrinks);
         $_ = $value;
         return (&$f, $seed1);
     };
@@ -103,10 +104,10 @@ C<flatmap { ... } $g> is equivalent to C<flatten(comap { ... } $g)>.
 sub flatmap(&$) {
     my ($f, $gen) = @_;
     return gen {
-        my ($seed0) = @_;
-        my ($value, $seed1) = $gen->($seed0);
+        my ($seed0, $shrinks) = @_;
+        my ($value, $seed1) = $gen->($seed0, $shrinks);
         $_ = $value;
-        return (&$f)->($seed1);
+        return (&$f)->($seed1, $shrinks);
     };
 }
 
@@ -149,10 +150,10 @@ since some predicates are unsatisfiable:
 sub filter(&$) {
     my ($p, $gen) = @_;
     return gen {
-        my ($seed) = @_;
+        my ($seed, $shrinks) = @_;
         my $failures = 0;
         while ($failures < MAX_RETRIES) {
-            my ($value, $next) = $gen->($seed);
+            my ($value, $next) = $gen->($seed, $shrinks);
             return ($value, $next) if $p->($value);
             $seed = $next;
             $failures += 1;
@@ -263,8 +264,10 @@ sub fraction {
     if (defined($limit)) {
         my $delta = $limit - $start;
         return gen {
-            my ($seed) = @_;
-            return (($seed / SEED_MODULUS) * $delta + $start, nextseed($seed));
+            my ($seed, $shrinks) = @_;
+            my $x = randomfloat($seed, $delta, $start);
+            $x = $x / (2 ** $shrinks) if $shrinks;
+            return ($x, nextseed($seed));
         }
     } else {
         return fraction(-$start, $start);
@@ -287,7 +290,7 @@ sub range {
     my $diff = $limit - $start;
     die if $diff > SEED_MODULUS;
     return gen {
-        my ($seed) = @_;
+        my ($seed, $shrinks) = @_; # shrink is unused
         my $remainder = SEED_MODULUS % $diff;
         my $top = SEED_MODULUS - $remainder;
         while ($seed >= $top) {
@@ -302,7 +305,9 @@ sub range {
 
 =cut
 sub size() {
-    return generators(range(0, 3), range(0, 11), range(0, 35));
+    #return whole(0, 64);
+    return whole(0, 7);
+    #return generators(whole(0, 3), whole(0, 11), whole(0, 35));
 }
 memoize('size');
 
@@ -331,11 +336,19 @@ sub ascii() {
 }
 memoize('ascii');
 
+=item B<printable()>
+
+=cut
+sub printable() {
+    return char(32, 127)
+}
+memoize('printable');
+
 =item B<wordchar()>
 
 =cut
 sub wordchar() {
-    return oneof('A'..'Z', 'a'..'z', '0'..'9');
+    return oneof('A'..'Z', 'a'..'z', '0'..'9', '_');
 }
 memoize('wordchar');
 
@@ -369,7 +382,7 @@ sub stringof {
 
 =cut
 sub identifier() {
-    return stringof(wordchar(), range(1, 8));
+    return stringof(wordchar(), whole(1, 8));
 }
 memoize('identifier');
 
@@ -402,11 +415,11 @@ memoize('anyscalar');
 sub tuple(@) {
     my (@gens) = @_;
     return gen {
-        my ($seed) = @_;
+        my ($seed, $shrinks) = @_;
         my $res = [];
         for my $gen (@gens) {
             confess unless $gen;
-            my ($value, $next) = $gen->($seed);
+            my ($value, $next) = $gen->($seed, $shrinks);
             push(@$res, $value);
             $seed = $next;
         }
@@ -420,14 +433,14 @@ sub tuple(@) {
 sub record(@) {
     my (@items) = @_;
     return gen {
-        my ($seed) = @_;
+        my ($seed, $shrinks) = @_;
         my $res = {};
         my $i = 0;
         while ($i < scalar(@items)) {
             my $key = $items[$i];
             my $gen = $items[$i + 1];
             $i += 2;
-            my ($value, $next) = $gen->($seed);
+            my ($value, $next) = $gen->($seed, $shrinks);
             $res->{$key} = $value;
             $seed = $next;
         }
@@ -442,10 +455,10 @@ sub vector {
     my ($gen, $size) = @_;
     die "invalid size: $size" unless $size >= 0;
     return gen {
-        my ($seed) = @_;
+        my ($seed, $shrinks) = @_;
         my $res = [];
         while ($size > 0) {
-            my ($value, $next) = $gen->($seed);
+            my ($value, $next) = $gen->($seed, $shrinks);
             push(@$res, $value);
             $seed = $next;
             $size -= 1;
@@ -499,14 +512,14 @@ sub hash {
 sub function {
     my ($gen) = @_;
     return gen {
-        my ($seed0) = @_;
+        my ($seed0, $shrinks) = @_;
         my $f = sub {
             my (@inputs) = @_;
             my $seed = $seed0;
             foreach my $input (@inputs) {
                 $seed = absorb($seed, $input);
             }
-            my ($value, $next) = $gen->($seed);
+            my ($value, $next) = $gen->($seed, $shrinks);
             return $value;
         };
         return ($f, nextseed($seed0));
@@ -521,15 +534,15 @@ sub function {
 sub gengen {
     return comap {
         if    ($_ <= 10) { bool() }
-        elsif ($_ <= 20) { flatmap { fraction($_) } range(1, 1000000000) }
-        elsif ($_ <= 30) { flatmap { whole($_) } range(1, 1000000000) }
+        elsif ($_ <= 20) { flatmap { fraction($_) } whole(1, 1000000000) }
+        elsif ($_ <= 30) { flatmap { whole($_) } whole(1, 1000000000) }
         elsif ($_ <= 40) { identifier() }
         elsif ($_ <= 50) { string() }
         elsif ($_ <= 55) { flatmap { tuple(@$_) } tuple(gengen(), gengen()) }
         elsif ($_ <= 60) { flatmap { record(@$_) } tuple(identifier(), gengen(), identifier(), gengen()) }
         elsif ($_ <= 65) { flatmap { vector(@$_) } tuple(gengen(), size()) }
         else             { const(undef) }
-    } range(1, 75);
+    } whole(1, 75);
 }
 memoize('gengen');
 
@@ -546,7 +559,7 @@ memoize('anything');
 =cut
 sub genseed {
     return gen {
-        my ($seed) = @_;
+        my ($seed, $shrinks) = @_;
         return ($seed, nextseed($seed));
     }
 }
@@ -594,12 +607,28 @@ sub nextseed {
     return $next
 }
 
+=item B<randomfloat(SEED, DELTA, START)>
+
+=cut
+sub randomfloat {
+    my ($seed, $delta, $start) = @_;
+    return ($seed / SEED_MODULUS) * $delta + $start;
+}
+
 =item B<adjustseed(SEED, N)>
 
 =cut
 sub adjustseed {
     my ($seed, $n) = @_;
     return int($seed + $n) % SEED_MODULUS;
+}
+
+=item B<altseed(SEED)>
+
+=cut
+sub altseed {
+    my ($seed) = @_;
+    return nextseed(~$seed);
 }
 
 =item B<absorb(SEED, VALUE)>

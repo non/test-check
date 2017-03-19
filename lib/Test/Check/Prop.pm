@@ -88,13 +88,13 @@ sub run {
     my ($self, $t, $seed) = @_;
     $seed = randomseed() unless defined($seed);
 
-    my ($passed, $failseed) = $self->test($seed);
+    my ($passed, $failseed, $shrinks) = $self->test($seed);
 
     $t->level(1);
     $t->ok($passed, $self->{name});
     unless ($passed) {
-        $t->diag("  failing seed: $failseed");
-        my ($value, $next) = $self->{gen}->($seed);
+        $t->diag("  failing seed: $failseed (shrinks: $shrinks)");
+        my ($value, $next) = $self->{gen}->($seed, $shrinks);
         if ($self->{isnamed}) {
             $t->diag("  named arguments were:");
             my %h = %$value;
@@ -105,12 +105,13 @@ sub run {
             $t->diag("  positional arguments were:");
             my $i = 0;
             while ($i < scalar(@$value)) {
-                $t->diag("    $i: $value->[$i]");
+                #$t->diag("    $i: ". "$value->[$i]");
+                use Data::Dumper;
+                $t->diag("    $i: " . Dumper($value->[$i]));
                 $i += 1;
             }
         }
     }
-
 }
 
 =item B<test SEED>
@@ -130,12 +131,20 @@ sub test {
     my ($self, $seed) = @_;
     my $runs = 0;
     while ($runs < 100) {
-        my ($res, $next) = $self->check($seed);
-        return (undef, $seed) unless $res;
+        my ($ok, $next) = $self->check($seed);
+        unless ($ok) {
+            my $shrinks = 0;
+            while ($shrinks < 100) {
+                my ($oknow) = $self->check($seed, $shrinks + 1);
+                last if $oknow;
+                $shrinks += 1;
+            }
+            return (undef, $seed, $shrinks);
+        }
         $seed = $next;
         $runs += 1;
     }
-    return (1, undef);
+    return (1, undef, undef);
 }
 
 =item B<check SEED>
@@ -149,8 +158,8 @@ the failing seed; it is always the next seed for the RNG.
 
 =cut
 sub check {
-    my ($self, $seed) = @_;
-    my ($value, $next) = $self->{gen}->($seed);
+    my ($self, $seed, $shrinks) = @_;
+    my ($value, $next) = $self->{gen}->($seed, $shrinks);
     my @args = $self->{isnamed} ? %$value : @$value;
     my $res = $self->{predicate}->(@args);
     return ($res, $next);
