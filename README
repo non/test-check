@@ -40,8 +40,8 @@ DESCRIPTION
 
     It also contains two modules:
 
-     * C<Test::Check::Gen> - generator combinators for producing arbitrary data
-     * C<Test::Check::Prop> - objects representing properties to test
+     * Test::Check::Gen - generator combinators for producing arbitrary data
+     * Test::Check::Prop - objects representing properties to test
 
 DETERMINISM
     It's important that generators and properties are deterministic. When a
@@ -110,4 +110,11 @@ FUTURE WORK
     Support shrinking.
 
     Support hardcoded regression cases/seeds.
+
+POD ERRORS
+    Hey! The above document had some coding errors, which are explained
+    below:
+
+    Around line 56:
+        =back without =over
 
