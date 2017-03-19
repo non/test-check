@@ -371,6 +371,20 @@ sub string() {
 }
 memoize('string');
 
+=item B<anyscalar()>
+
+=cut
+sub anyscalar() {
+    return generators(
+        const(undef),
+        bool(),
+        generators(fraction(1), fraction(1000), fraction(1000000000)),
+        generators(whole(1), whole(1000), whole(1000000000)),
+        identifier(),
+        string());
+}
+memoize('anyscalar');
+
 # Arary generators
 
 =item B<tuple(GENS...)>
@@ -437,6 +451,7 @@ sub vector {
 sub array {
     my ($egen, $sgen) = @_;
     $sgen = size() unless defined($sgen);
+    $egen = anything() unless defined($egen);
     return flatmap { vector($egen, $_) } $sgen;
 }
 

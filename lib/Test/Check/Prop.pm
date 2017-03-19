@@ -52,36 +52,83 @@ sub new {
     return $self;
 }
 
-=item B<run SEED>
+=item B<run TESTER [SEED]>
 
-Test a property.
+Do a complete test run, using the given TESTER (an instance of Test::Builder),
+as well an optional seed. This will register whether or not the test passed,
+as well as displaying any necessary failure output (such as the failing seed).
 
 =cut
 sub run {
-    my ($self, $seed) = @_;
-    my ($value, $next) = $self->{gen}->($seed);
-    my @args = $self->{isnamed} ? %$value : @$value;
-    #my $res = eval { $self->{predicate}->(@args) };
-    #return ($@ ? undef : $res, $next);
-    my $res = $self->{predicate}->(@args);
-    return ($res, $next);
+    my ($self, $t, $seed) = @_;
+    $seed = randomseed() unless defined($seed);
+
+    my ($passed, $failseed) = $self->test($seed);
+
+    $t->level(1);
+    $t->ok($passed, $self->{name});
+    unless ($passed) {
+        $t->diag("  failing seed: $failseed");
+        my ($value, $next) = $self->{gen}->($seed);
+        if ($self->{isnamed}) {
+            $t->diag("  named arguments were:");
+            my %h = %$value;
+            foreach my $key (keys(%h)) {
+                $t->diag("    $key: $value->{$key}");
+            }
+        } else {
+            $t->diag("  positional arguments were:");
+            my $i = 0;
+            while ($i < scalar(@$value)) {
+                $t->diag("    $i: $value->[$i]");
+                $i += 1;
+            }
+        }
+    }
+
 }
 
 =item B<test SEED>
 
-Test a property.
+Test a property with a given starting seed.
+
+By default this will check 100 test cases (with 100 different seeds, starting
+with SEED). If any test case fails, this function will return immediately.
+
+The return value is a list with two members: ($passed, $failingseed). If
+$passed is true, $failingseed will be undef. Otherwise, $failingseed will be
+the seed for the failing test case (which can be used to reproduce the
+failure).
 
 =cut
 sub test {
     my ($self, $seed) = @_;
     my $runs = 0;
     while ($runs < 100) {
-        my ($res, $next) = $self->run($seed);
+        my ($res, $next) = $self->check($seed);
         return (undef, $seed) unless $res;
         $seed = $next;
         $runs += 1;
     }
     return (1, undef);
+}
+
+=item B<check SEED>
+
+Generate a test case using SEED and check to see if the property is true.
+
+Returns a list of two elements: ($passed, $nextseed).
+
+Note that unlike B<test>, even if $passed is false, the seed returned is NOT
+the failing seed; it is always the next seed for the RNG.
+
+=cut
+sub check {
+    my ($self, $seed) = @_;
+    my ($value, $next) = $self->{gen}->($seed);
+    my @args = $self->{isnamed} ? %$value : @$value;
+    my $res = $self->{predicate}->(@args);
+    return ($res, $next);
 }
 
 =back

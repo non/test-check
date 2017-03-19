@@ -1,0 +1,82 @@
+[1mNAME[0m
+    Test::Check - Property-based testing for Perl.
+
+[1mSYNOPSIS[0m
+        use Test::Check tests => 2;
+        use Test::Check::Gen qw(/.*/);
+
+        my $g1 = whole(1000); // generate integers -999 to 999
+
+        test "+ is associative" => prop {
+            my ($x, $y, $z) = @_;
+            my $lhs = (($x + $y) + $z);
+            my $rhs = ($x + ($y + $z));
+            $lhs == $rhs;
+        } $g1, $g1, $g1;
+
+        my $g2 = oneof(0, 1, 1000); // generate one of 3 numbers
+
+        test "0 is unique" => prop {
+            my (%o) = @_;
+            my $isunchanged = $o{x} + $o{y} == $o{x};
+            my $iszero = $o{y} == 0;
+            $unchanged == $iszero;
+        } x => $g2, y => $g2;
+
+[1mDESCRIPTION[0m
+    Property-based testing involves running test code for many possible inputs
+    to find bugs. Instead of explicitly writing explicit test cases (e.g. 10
+    tests), the goal is to write generalized tests (properties) which should
+    pass for a wide variety of inputs. Then, we use generators to produce
+    arbitrary values, evaluate the properties, and attempt to find
+    counter-examples (failing test cases).
+
+    "Test::Check" contains some top-level functions which provide a very
+    simple DSL to define properties and attach generators to them.
+
+    It also contains two modules:
+
+     * C<Test::Check::Gen> - generator combinators for producing arbitrary data
+     * C<Test::Check::Prop> - objects representing properties to test
+
+[1mDETERMINISM[0m
+    It's important that generators and properties are deterministic. When a
+    property fails, Test::Check will report a "seed" value that was used to
+    produce the specific failing test case. If a test in non-deterministic,
+    then this seed is much less useful since it isn't sufficient to completely
+    reproduce the failure.
+
+    This means that (as much as possible) your properties should depend on
+    global state which is mutated between test case runs. It also means that
+    when writing generators, they should not use Perl's built-in RNG, the
+    filesystem, or other sources of non-determinism.
+
+    See "Test::Check::Gen" for more information about how generators are
+    defined using an immutable RNG function to ensure that they are
+    repeatable.
+
+[1mFUNCTIONS[0m
+    [1mtest NAME PROPERTY[0m
+        Define a named test which tests a particular property.
+
+        Here's an examples:
+
+            use Data::Compare;
+            use Test::Check;
+            use Test::Check::Gen qw(array);
+
+            test "reverse . reverse = id" => prop {
+                my ($xs) = @_;
+                Compare([reverse(reverse(@$xs))], $xs)
+            }, array();
+
+    [1mprop { BLOCK } [GEN1, GEN2...][0m
+        Define a property.
+
+[1mFUTURE WORK[0m
+    Finish writing the documentation.
+
+    Support shrinking.
+
+    Support hardcoded regression cases/seeds.
+

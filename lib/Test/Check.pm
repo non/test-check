@@ -34,7 +34,38 @@ Test::Check - Property-based testing for Perl.
 
 =head1 DESCRIPTION
 
-We should write a description.
+Property-based testing involves running test code for many possible inputs to
+find bugs. Instead of explicitly writing explicit test cases (e.g. 10 tests),
+the goal is to write generalized tests (properties) which should pass for a
+wide variety of inputs. Then, we use generators to produce arbitrary values,
+evaluate the properties, and attempt to find counter-examples (failing test
+cases).
+
+C<Test::Check> contains some top-level functions which provide a very simple
+DSL to define properties and attach generators to them.
+
+It also contains two modules:
+
+ * C<Test::Check::Gen> - generator combinators for producing arbitrary data
+ * C<Test::Check::Prop> - objects representing properties to test
+
+=head1 DETERMINISM
+
+It's important that generators and properties are deterministic. When a
+property fails, Test::Check will report a "seed" value that was used to
+produce the specific failing test case. If a test in non-deterministic, then
+this seed is much less useful since it isn't sufficient to completely
+reproduce the failure.
+
+This means that (as much as possible) your properties should depend on global
+state which is mutated between test case runs. It also means that when writing
+generators, they should not use Perl's built-in RNG, the filesystem, or other
+sources of non-determinism.
+
+See C<Test::Check::Gen> for more information about how generators are defined
+using an immutable RNG function to ensure that they are repeatable.
+
+=head1 FUNCTIONS
 
 =over
 
@@ -50,40 +81,27 @@ our @EXPORT = qw(test prop);
 
 =item B<test NAME PROPERTY>
 
-Test a property.
+Define a named test which tests a particular property.
+
+Here's an examples:
+
+    use Data::Compare;
+    use Test::Check;
+    use Test::Check::Gen qw(array);
+
+    test "reverse . reverse = id" => prop {
+        my ($xs) = @_;
+        Compare([reverse(reverse(@$xs))], $xs)
+    }, array(); 
 
 =cut
 sub test($$) {
     my ($name, $body) = @_;
     my ($p, @gens) = @$body;
+
     my $prop = Test::Check::Prop->new($name, $p, @gens);
-    my $seed = randomseed();
-
-
     my $t = Test::Builder->new();
-
-    my ($passed, $failseed) = $prop->test($seed);
-
-    $t->level(1);
-    $t->ok($passed, $name);
-    unless ($passed) {
-        $t->diag("  failing seed: $failseed");
-        my ($value, $next) = $prop->{gen}->($seed);
-        if ($prop->{isnamed}) {
-            $t->diag("  named arguments were:");
-            my %h = %$value;
-            foreach my $key (keys(%h)) {
-                $t->diag("    $key: $value->{$key}");
-            }
-        } else {
-            $t->diag("  positional arguments were:");
-            my $i = 0;
-            while ($i < scalar(@$value)) {
-                $t->diag("    $i: $value->[$i]");
-                $i += 1;
-            }
-        }
-    }
+    $prop->run($t);
 }
 
 =item B<prop { BLOCK } [GEN1, GEN2...]>
@@ -98,9 +116,13 @@ sub prop(&@) {
 
 =back
 
-=head1 Conclusion
+=head1 FUTURE WORK
 
-The end.
+Finish writing the documentation.
+
+Support shrinking.
+
+Support hardcoded regression cases/seeds.
 
 =cut
 
