@@ -50,8 +50,10 @@ DSL to define properties and attach generators to them.
 
 It also contains two modules:
 
- * C<Test::Check::Gen> - generator combinators for producing arbitrary data
- * C<Test::Check::Prop> - objects representing properties to test
+ * Test::Check::Gen - generator combinators for producing arbitrary data
+ * Test::Check::Prop - objects representing properties to test
+
+=back
 
 =head1 DETERMINISM
 
