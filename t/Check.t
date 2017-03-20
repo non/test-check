@@ -6,6 +6,7 @@ package main;
 use warnings;
 use strict;
 
+use Data::Compare;
 use Test::Check tests => 15;
 use Test::Check::Gen qw(/.*/);
 use Test::Deep qw(eq_deeply);

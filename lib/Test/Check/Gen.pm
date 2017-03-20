@@ -29,10 +29,10 @@ use Test::Deep qw(eq_deeply);
 
 our @ISA = qw(Exporter);
 
-our @EXPORT_OK = qw(comap flatmap flatten filter const onein bool whole fraction range
+our @EXPORT_OK = qw(comap flatmap flatten filter const onein bool whole float range
     size codepoint identifier string tuple record vector array table hash anything
     oneof frequency optional sample stringof ascii function generators randomseed
-    gengen genseed eq_gen number printable);
+    gengen genseed eq_gen number fraction printable);
 
 use feature 'unicode_strings';
 
@@ -218,7 +218,7 @@ sub frequency(@) {
             $total -= $weight;
         }
         return $pairs[0]->[1];
-    } fraction($total);
+    } float($total);
 }
 
 =item B<optional(GEN)>
@@ -251,16 +251,17 @@ memoize('bool');
 =cut
 sub number {
     return generators(
-        fraction(1), fraction(1000), fraction(1000000000),
-        whole(1), whole(1000), whole(1000000000));
+        float(1), float(1000), float(1000000000),
+        whole(), whole(1000), whole(1000000000));
 }
 memoize('number');
 
-=item B<fraction()>
+=item B<float()>
 
 =cut
-sub fraction {
+sub float {
     my ($start, $limit) = @_;
+    $start = 1000000000 unless defined($start);
     if (defined($limit)) {
         my $delta = $limit - $start;
         return gen {
@@ -270,7 +271,7 @@ sub fraction {
             return ($x, nextseed($seed));
         }
     } else {
-        return fraction(-$start, $start);
+        return float(-$start + 1, $start);
     }
 }
 
@@ -278,7 +279,33 @@ sub fraction {
 
 =cut
 sub whole {
-    return comap { int($_) } fraction(@_);
+    my ($start, $limit) = @_;
+    $start = 1000000000 unless defined($start);
+    if (defined($limit)) {
+        my $delta = $limit - $start;
+        return comap { int($_ + $start) } float(0, $delta);
+    } else {
+        return whole(-$start + 1, $start);
+    }
+}
+
+=item B<fraction()>
+
+=cut
+sub fraction {
+    my ($start, $limit) = @_;
+    $start = 1000000000 unless defined($start);
+    if (defined($limit)) {
+        my $delta = $limit - $start;
+        return flatmap {
+            my $scale = 10 ** $_;
+            comap {
+                $_->[0] / $_->[1]
+            } tuple(whole(0, $delta * $scale), whole(1, $scale + 1));
+        } whole(0, 11);
+    } else {
+        return fraction(-$start + 1, $start);
+    }
 }
 
 =item B<range(START, LIMIT)>
@@ -534,7 +561,7 @@ sub function {
 sub gengen {
     return comap {
         if    ($_ <= 10) { bool() }
-        elsif ($_ <= 20) { flatmap { fraction($_) } whole(1, 1000000000) }
+        elsif ($_ <= 20) { flatmap { float($_) } whole(1, 1000000000) }
         elsif ($_ <= 30) { flatmap { whole($_) } whole(1, 1000000000) }
         elsif ($_ <= 40) { identifier() }
         elsif ($_ <= 50) { string() }

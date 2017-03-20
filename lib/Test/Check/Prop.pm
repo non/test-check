@@ -36,6 +36,7 @@ the property.
 
 =cut
 use Carp;
+use Data::Dump qw(dump);
 use Exporter;
 use Memoize;
 
@@ -94,7 +95,7 @@ sub run {
     $t->ok($passed, $self->{name});
     unless ($passed) {
         $t->diag("  failing seed: $failseed (shrinks: $shrinks)");
-        my ($value, $next) = $self->{gen}->($seed, $shrinks);
+        my ($value, $next) = $self->{gen}->($failseed, $shrinks);
         if ($self->{isnamed}) {
             $t->diag("  named arguments were:");
             my %h = %$value;
@@ -105,9 +106,7 @@ sub run {
             $t->diag("  positional arguments were:");
             my $i = 0;
             while ($i < scalar(@$value)) {
-                #$t->diag("    $i: ". "$value->[$i]");
-                use Data::Dumper;
-                $t->diag("    $i: " . Dumper($value->[$i]));
+                $t->diag("    $i: ". dump($value->[$i]));
                 $i += 1;
             }
         }
