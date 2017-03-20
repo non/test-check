@@ -29,7 +29,7 @@ Test::Check - Property-based testing for Perl.
         my (%o) = @_;
         my $isunchanged = $o{x} + $o{y} == $o{x};
         my $iszero = $o{y} == 0;
-        $unchanged == $iszero;
+        $isunchanged == $iszero;
     } x => $g2, y => $g2;
 
 =head1 DESCRIPTION
