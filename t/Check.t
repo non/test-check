@@ -33,6 +33,13 @@ test "0 is unique" => prop {
     $isunchanged == $iszero;
 } whole(10), whole(10);
 
+sub eq_gen {
+    my ($gen1, $gen2, $seed) = @_;
+    my ($x1, $s1) = $gen1->($seed);
+    my ($x2, $s2) = $gen2->($seed);
+    return eq_deeply($x1, $x2) && $s1 == $s2;
+}
+
 test "gen is deterministic" => prop {
     my ($gen, $seed) = @_;
     eq_gen($gen, $gen, $seed);

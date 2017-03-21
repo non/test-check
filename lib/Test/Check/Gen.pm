@@ -11,13 +11,66 @@ Test::Check::Gen
 
 =head1 SYNOPSIS
 
-  use Test::Check::Gen;
+    use Test::Check::Gen;
 
-  die "write this!";
+    die "write this!";
 
 =head1 DESCRIPTION
 
-We should write a description.
+A generator produces arbitrary (but deterministic) values given an input seed
+and shrinking parameter. Generators are used to produce test cases for
+properties -- if a property passes some set number of generated test cases, we
+say that the property has passed.
+
+Generators are represented as blessed function references. The function should
+accept two values (C<$seed> and C<$shrinks>) and return two values (C<$value>
+and C<$nextseed>). Given the same inputs a generator is required to always
+produce the same outputs.
+
+Most generators are defined in terms of other functions (referred to as
+"generator combinators"), for example:
+
+ * generators($gen1, $gen2, ...)
+ * comap { ... } $gen
+ * flatmap { ... } $gen
+ * flatten $gengen
+ * filter { ... } $gen
+ * optional($gen)
+ * concat($gen1, $gen2, ...)
+ * stringof($chargen)
+ * tuple($gen1, $gen2, ...)
+ * record(k1 => $gen1, k2 => $gen2, ...)
+ * vector($gen, $size)
+ * array()
+ * table($keygen, $gen)
+ * hash($gen)
+ * function($gen)
+
+
+Generators can also be written from scratch (using the C<gen> method), which
+requires implementing an anonymous function of the form:
+
+    gen {
+        my ($seed, $shrinks) = @_;
+        ... # generation goes here
+        return ($generated_value, $nextseed);
+    };
+
+The C<$seed> parameter can be used directly with the following RNG-related
+methods:
+
+ * nextseed($seed) - given a seed, get the next seed in the RNG sequence
+ * randomfloat($seed) - given a seed, produce a random float in [0.0, 1.0).
+ * absorb($seed, $input) - given a seed and a value, produce a new seed
+
+Instead of calling C<rand()> (or similar built-in functions), it's important
+to use these methods, which ensure that the random generation is reproducable
+from a starting seed.
+
+The C<$shrinks> parameter should be passed to any other generators used. It's
+primary purpose is to decrease the size of any numbers/structures generated.
+For example, when set to 2, the numeric range for generated numbers should
+contract by 2.
 
 =over
 
@@ -32,7 +85,7 @@ our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(comap flatmap flatten filter const onein bool whole float range
     size codepoint identifier string tuple record vector array table hash anything
     oneof frequency optional sample stringof ascii function generators randomseed
-    gengen genseed eq_gen number fraction printable);
+    gengen genseed number fraction printable);
 
 use feature 'unicode_strings';
 
@@ -332,9 +385,7 @@ sub range {
 
 =cut
 sub size() {
-    #return whole(0, 64);
-    return whole(0, 7);
-    #return generators(whole(0, 3), whole(0, 11), whole(0, 35));
+    return whole(0, 64);
 }
 memoize('size');
 
@@ -567,7 +618,7 @@ sub gengen {
         elsif ($_ <= 50) { string() }
         elsif ($_ <= 55) { flatmap { tuple(@$_) } tuple(gengen(), gengen()) }
         elsif ($_ <= 60) { flatmap { record(@$_) } tuple(identifier(), gengen(), identifier(), gengen()) }
-        elsif ($_ <= 65) { flatmap { vector(@$_) } tuple(gengen(), size()) }
+        elsif ($_ <= 65) { flatmap { vector(@$_) } tuple(gengen(), whole(1, 6)) }
         else             { const(undef) }
     } whole(1, 75);
 }
@@ -642,22 +693,6 @@ sub randomfloat {
     return ($seed / SEED_MODULUS) * $delta + $start;
 }
 
-=item B<adjustseed(SEED, N)>
-
-=cut
-sub adjustseed {
-    my ($seed, $n) = @_;
-    return int($seed + $n) % SEED_MODULUS;
-}
-
-=item B<altseed(SEED)>
-
-=cut
-sub altseed {
-    my ($seed) = @_;
-    return nextseed(~$seed);
-}
-
 =item B<absorb(SEED, VALUE)>
 
 =cut
@@ -680,21 +715,11 @@ sub absorb {
         my $i = 0;
         while ($i < length($str)) {
             my $c = substr($str, $i, 1);
-            $seed = adjustseed($seed, ord($c));
+            $seed = ($seed + ord($c)) % SEED_MODULUS;
             $i += 1
         }
     }
     return $seed;
-}
-
-=item B<eq_gen(GEN1, GEN2, SEED)>
-
-=cut
-sub eq_gen {
-    my ($gen1, $gen2, $seed) = @_;
-    my ($x1, $s1) = $gen1->($seed);
-    my ($x2, $s2) = $gen2->($seed);
-    return eq_deeply($x1, $x2) && $s1 == $s2;
 }
 
 =back
