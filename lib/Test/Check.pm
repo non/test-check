@@ -57,7 +57,7 @@ It also contains two modules:
 
 It's important that generators and properties are deterministic. When a
 property fails, Test::Check will report a "seed" value that was used to
-produce the specific failing test case. If a test in non-deterministic, then
+produce the specific failing test case. If a test is non-deterministic, then
 this seed is much less useful since it isn't sufficient to completely
 reproduce the failure.
 

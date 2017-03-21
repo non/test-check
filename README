@@ -1,7 +1,7 @@
-NAME
+[1mNAME[0m
     Test::Check - Property-based testing for Perl.
 
-SYNOPSIS
+[1mSYNOPSIS[0m
         use Test::Check tests => 2;
         use Test::Check::Gen qw(/.*/);
 
@@ -23,13 +23,13 @@ SYNOPSIS
             $isunchanged == $iszero;
         } x => $g2, y => $g2;
 
-DESCRIPTION
-    Property-based testing involves running test code for many possible
-    inputs to find bugs. Instead of explicitly writing explicit test cases
-    (e.g. 10 tests), the goal is to write generalized tests (properties)
-    which should pass for a wide variety of inputs. Then, we use generators
-    to produce arbitrary values, evaluate the properties, and attempt to
-    find counter-examples (failing test cases).
+[1mDESCRIPTION[0m
+    Property-based testing involves running test code for many possible inputs
+    to find bugs. Instead of explicitly writing explicit test cases (e.g. 10
+    tests), the goal is to write generalized tests (properties) which should
+    pass for a wide variety of inputs. Then, we use generators to produce
+    arbitrary values, evaluate the properties, and attempt to find
+    counter-examples (failing test cases).
 
     Property-based testing cannot prove the absence of bugs (it may fail to
     "find" the buggy test cases) but testing properties over many test cases
@@ -43,12 +43,12 @@ DESCRIPTION
      * Test::Check::Gen - generator combinators for producing arbitrary data
      * Test::Check::Prop - objects representing properties to test
 
-DETERMINISM
+[1mDETERMINISM[0m
     It's important that generators and properties are deterministic. When a
     property fails, Test::Check will report a "seed" value that was used to
-    produce the specific failing test case. If a test in non-deterministic,
-    then this seed is much less useful since it isn't sufficient to
-    completely reproduce the failure.
+    produce the specific failing test case. If a test is non-deterministic,
+    then this seed is much less useful since it isn't sufficient to completely
+    reproduce the failure.
 
     This means that (as much as possible) your properties should depend on
     global state which is mutated between test case runs. It also means that
@@ -59,12 +59,12 @@ DETERMINISM
     defined using an immutable RNG function to ensure that they are
     repeatable.
 
-FUNCTIONS
-    test NAME PROPERTY
+[1mFUNCTIONS[0m
+    [1mtest NAME PROPERTY[0m
         Define a named test which tests a particular property.
 
-        This function implements part of a DSL to make writing properties
-        look relatively clean. Here's an example:
+        This function implements part of a DSL to make writing properties look
+        relatively clean. Here's an example:
 
             use Data::Compare;
             use Test::Check;
@@ -76,7 +76,7 @@ FUNCTIONS
             }, array();
 
         This is equivalent to the following code written directly against
-        Test::Check::Prop:
+        [1mTest::Check::Prop[0m:
 
             my $p = Test::Check::Prop->new(
                 "reverse . reverse = id",
@@ -87,24 +87,23 @@ FUNCTIONS
                 array());
             $p->run();
 
-        Both of these do the same thing: test the given property against
-        many generated test cases. In this example we are generating many
+        Both of these do the same thing: test the given property against many
+        generated test cases. In this example we are generating many
         randomly-filled arrays and ensuring that reversing them twice is a
         no-op.
 
-    prop { BLOCK } [GEN1, GEN2...]
+    [1mprop { BLOCK } [GEN1, GEN2...][0m
         Define a property to be tested.
 
         This function is part of a DSL and is intended to be called within
-        test. It associates the given property (implemented as an anonymous
+        [1mtest[0m. It associates the given property (implemented as an anonymous
         function) with zero-or-more generators which are responsible for
         creating test cases.
 
-        During testing, each test case will be fed to the property's
-        function, which will return true if the property passes, and false
-        if it fails.
+        During testing, each test case will be fed to the property's function,
+        which will return true if the property passes, and false if it fails.
 
-FUTURE WORK
+[1mFUTURE WORK[0m
     Finish writing the documentation.
 
     Support shrinking.
