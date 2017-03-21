@@ -61,10 +61,11 @@ produce the specific failing test case. If a test is non-deterministic, then
 this seed is much less useful since it isn't sufficient to completely
 reproduce the failure.
 
-This means that (as much as possible) your properties should depend on global
-state which is mutated between test case runs. It also means that when writing
-generators, they should not use Perl's built-in RNG, the filesystem, or other
-sources of non-determinism.
+This means that (as much as possible) your properties should not depend on
+global state which is mutated between test case runs. (If your code needs to
+rely on global mutable state, you should "reset" at the start of your
+property.) It also means that when writing generators, they should not use
+Perl's built-in RNG, the filesystem, or other sources of non-determinism.
 
 See C<Test::Check::Gen> for more information about how generators are defined
 using an immutable RNG function to ensure that they are repeatable.
