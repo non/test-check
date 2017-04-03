@@ -91,6 +91,8 @@ use feature 'unicode_strings';
 
 use constant SEED_MODULUS => 2147483647;
 
+use constant SHRINK_DENOM => 1.18920711500272; # sqrt(sqrt(2))
+
 use constant MAX_RETRIES => 20;
 
 # Fundamental generator constructors and combinators
@@ -133,7 +135,9 @@ Create a new generator from GEN using the given FN function.
     my $g1 = comap { $_ * 2 } $g0;  // produces 2, 4, or 6.
     my $g2 = comap { $_ != 0 } $g0; // true or false, unevenly
 
-This is an analogue of Perl's built-in map method.
+This is an analogue of Perl's built-in map function, and the fmap function in
+Haskell. Generators are covariant functors, so the name "comap" refers to a
+covariant map operation.
 
 =cut
 sub comap(&$) {
@@ -152,6 +156,9 @@ Create a new generator from GEN by sequencing its generated values through a
 generator-producing function GENFN.
 
 C<flatmap { ... } $g> is equivalent to C<flatten(comap { ... } $g)>.
+
+This is an analogue to the flatMap method in Scala, and hte bind function in
+Haskell.
 
 =cut
 sub flatmap(&$) {
@@ -311,6 +318,8 @@ memoize('number');
 
 =item B<float()>
 
+Produce floating point values in the interal [start, limit).
+
 =cut
 sub float {
     my ($start, $limit) = @_;
@@ -319,16 +328,18 @@ sub float {
         my $delta = $limit - $start;
         return gen {
             my ($seed, $shrinks) = @_;
-            my $x = randomfloat($seed, $delta, $start);
-            $x = $x / (2 ** $shrinks) if $shrinks;
+            my $d = $shrinks ? $delta / (SHRINK_DENOM ** $shrinks) : $delta;
+            my $x = randomfloat($seed, $d, $start);
             return ($x, nextseed($seed));
         }
     } else {
-        return float(-$start + 1, $start);
+        return float(-$start, $start);
     }
 }
 
 =item B<whole()>
+
+Produce fractional values in the interval [start, limit).
 
 =cut
 sub whole {
@@ -343,6 +354,8 @@ sub whole {
 }
 
 =item B<fraction()>
+
+Produce fractional values in the interval [start, limit).
 
 =cut
 sub fraction {
@@ -362,6 +375,11 @@ sub fraction {
 }
 
 =item B<range(START, LIMIT)>
+
+range(x, y) produces values in the same range as whole(x, y). The difference
+is that unlike whole, range will not contract during shrinking. When you want
+to produce integers that shrink toward their minimum value, use whole.
+Otherwise, use range.
 
 =cut
 sub range {
@@ -531,7 +549,7 @@ sub record(@) {
 =cut
 sub vector {
     my ($gen, $size) = @_;
-    die "invalid size: $size" unless $size >= 0;
+    die "invalid size: $size" unless defined($size) && $size >= 0;
     return gen {
         my ($seed, $shrinks) = @_;
         my $res = [];

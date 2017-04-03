@@ -46,6 +46,10 @@ our @ISA = qw(Exporter);
 
 use feature 'unicode_strings';
 
+use constant NUM_CHECKS => 100;
+
+use constant MAX_SHRINKS => 100;
+
 =item B<new NAME PREDICATE [GEN1, GEN2...]>
 
 Given a name, a predicate, and generators, construct a property.
@@ -66,6 +70,13 @@ B<run>, B<test>, and B<check>.
 sub new {
     my ($class, $name, $predicate, @gens) = @_;
     die unless scalar(@gens);
+
+    # callers can pass generators in two ways: positional or named. if
+    # positional, we expect $gens[0] to be a Gen reference. otherwise, it will
+    # be a string (specifically, the name associated with the first generator).
+    #
+    # $self->{isnamed} tracks which way the generators were provided, since
+    # this also effects how the generated values are reported later.
     my $isnamed = !ref($gens[0]);
     my $self = {
         name => $name,
@@ -129,16 +140,18 @@ failure).
 sub test {
     my ($self, $seed) = @_;
     my $runs = 0;
-    while ($runs < 100) {
+    while ($runs < NUM_CHECKS) {
         my ($ok, $next) = $self->check($seed);
         unless ($ok) {
-            my $shrinks = 0;
-            while ($shrinks < 100) {
-                my ($oknow) = $self->check($seed, $shrinks + 1);
-                last if $oknow;
+            my $best = 0;
+            my $shrinks = 1;
+            # find the largest $shrinks where the prop still fails.
+            while ($shrinks < MAX_SHRINKS) {
+                my ($oknow) = $self->check($seed, $shrinks);
+                $best = $shrinks unless $oknow;
                 $shrinks += 1;
             }
-            return (undef, $seed, $shrinks);
+            return (undef, $seed, $best);
         }
         $seed = $next;
         $runs += 1;

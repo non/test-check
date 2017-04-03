@@ -23,9 +23,9 @@ Test::Check - Property-based testing for Perl.
         $lhs == $rhs;
     } $g1, $g1, $g1;
 
-    my $g2 = oneof(0, 1, 1000); // generate one of 3 numbers
+    my $g2 = oneof(0, 1, 1000); // generate one of these 3 numbers
 
-    test "0 is unique" => prop {
+    test "0 is the only identity element" => prop {
         my (%o) = @_;
         my $isunchanged = $o{x} + $o{y} == $o{x};
         my $iszero = $o{y} == 0;
@@ -88,7 +88,7 @@ our @EXPORT = qw(test prop);
 
 Define a named test which tests a particular property.
 
-This function implements part of a DSL to make writing properties look
+This function implements a simple DSL to make writing properties look
 relatively clean. Here's an example:
 
     use Data::Compare;
@@ -110,7 +110,8 @@ B<Test::Check::Prop>:
             Compare([reverse(reverse(@$xs))], $xs)
         },
         array());
-    $p->run();
+    my $t = Test::Builder->new();
+    $p->run($t);
 
 Both of these do the same thing: test the given property against many
 generated test cases. In this example we are generating many randomly-filled
